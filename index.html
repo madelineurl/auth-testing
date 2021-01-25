@@ -10,24 +10,46 @@
     <div id='root'></div>
 
     <script type='text/babel'>
-      const credentials = [
-        { username: 'lucy', password: 'lucy_pw'},
-        { username: 'moe', password: 'moe_pw'},
-        { username: 'larry', password: 'larry_pw'}
-      ];
       class App extends React.Component{
         constructor(){
           super();
           this.state = {
-            auth: {}
+            auth: {},
+            username: '',
+            password: '',
+            notes: []
           };
           this.login = this.login.bind(this);
           this.logout = this.logout.bind(this);
         }
+
+        componentDidMount(){
+          this.exchangeTokenForUser();
+        }
+
+        handleChange = (evt) => {
+          this.setState({ [evt.target.name]: evt.target.value })
+        }
+
+        getNotes = async (credential) => {
+          const notes = await axios.get(`/api/auth/${this.state.auth.id}/notes`, credential).data
+          console.log('notes!', notes);
+           // this.setState({ notes });
+        }
+
+        async login(credential){
+          const { token } = (await axios.post('/api/auth', credential)).data;
+          window.localStorage.setItem('token', token);
+          this.exchangeTokenForUser();
+          this.getNotes(credential);
+        }
+
+
         logout(){
           window.localStorage.removeItem('token');
           this.setState({ auth: {}});
         }
+
         async exchangeTokenForUser(){
           const token = window.localStorage.getItem('token');
           if(token){
@@ -39,27 +61,20 @@
             this.setState({ auth });
           }
         }
-        componentDidMount(){
-          this.exchangeTokenForUser();
-        }
-        async login(credential){
-          const { token } = (await axios.post('/api/auth', credential)).data;
-          window.localStorage.setItem('token', token);
-          this.exchangeTokenForUser();
-        }
+
         render(){
-          const { auth } = this.state;
-          const { login, logout } = this;
+          const { auth, username, password, notes } = this.state;
+          const { login, logout, handleChange } = this;
           if(!auth.id){
             return (
               <div>
-                {
-                  credentials.map( credential => {
-                    return (
-                      <button key={credential.username} onClick={ ()=> login(credential )}>{ credential.username }</button>
-                    );
-                  })
-                }
+                <form>
+                  <label htmlFor="username">username</label>
+                  <input name="username" onChange={handleChange}/>
+                  <label htmlFor="password">password</label>
+                  <input name="password" onChange={handleChange}/>
+                  <button type="submit" onClick={(evt) => { evt.preventDefault(); login({username, password}) }}>Login</button>
+                </form>
               </div>
             );
           }
@@ -67,6 +82,7 @@
             return (
               <div>
                 <button onClick={ logout }>Logout ({ auth.username})</button>
+
               </div>
             );
           }
